@@ -1,0 +1,6 @@
+@angeAuth_HostAddress = http://localhost:5093
+
+GET {{angeAuth_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

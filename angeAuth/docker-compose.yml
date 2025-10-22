@@ -1,0 +1,32 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15
+    restart: always
+    environment:
+      POSTGRES_USER: angeauth_user
+      POSTGRES_PASSWORD: Losedd1456
+      POSTGRES_DB: angeauth_db
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  angeauth:
+    build: .
+    depends_on:
+      - postgres
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ConnectionStrings__DefaultConnection=Host=postgres;Port=5432;Database=angeauth_db;Username=angeauth_user;Password=Losedd1456
+      - Jwt__Key=EstoEsUnaClaveSuperSecretaCambialaPorProduccion123!
+      - Jwt__Issuer=angeAuth
+      - Jwt__Audience=angeAuthUsers
+      - Jwt__ExpireMinutes=60
+    ports:
+      - "5000:5111"
+    restart: on-failure
+
+volumes:
+  db_data:
