@@ -32,13 +32,16 @@ namespace AngeAuth.Controllers
             try
             {
                 // Leer ID del usuario desde el JWT
-                var userIdClaim = User.Claims.FirstOrDefault(c => c.Type == JwtRegisteredClaimNames.Sub)?.Value;
+                var userIdClaim = User.Claims.FirstOrDefault(c =>
+                c.Type == JwtRegisteredClaimNames.Sub ||
+                c.Type == ClaimTypes.NameIdentifier)?.Value;
+
                 if (string.IsNullOrEmpty(userIdClaim))
                     return Unauthorized(new { message = "Token inválido" });
 
                 Guid userId = Guid.Parse(userIdClaim);
-
                 var subscription = await _db.Subscriptions
+                    .Include(s => s.Plan)
                     .Where(s => s.UsuarioId == userId && s.Activo)
                     .OrderByDescending(s => s.FechaFin)
                     .FirstOrDefaultAsync();
@@ -46,15 +49,34 @@ namespace AngeAuth.Controllers
                 if (subscription == null)
                     return NotFound(new { message = "No hay suscripción activa" });
 
+                // ✅ Buscar la empresa asociada al usuario
+                var empresa = await _db.Empresas
+                    .Where(e => e.UsuarioId == userId)
+                    .FirstOrDefaultAsync();
+
                 var hoy = DateTime.UtcNow;
                 var mesesRestantes = Math.Max(0, ((subscription.FechaFin.Year - hoy.Year) * 12) + subscription.FechaFin.Month - hoy.Month);
 
+                // ✅ Retornar la suscripción y los datos de la empresa
                 return Ok(new
                 {
-                    mesesRestantes,
-                    fechaInicio = subscription.FechaInicio,
-                    fechaFin = subscription.FechaFin,
-                    activo = subscription.Activo
+                    empresa = empresa == null ? null : new
+                    {
+                        empresa.Nombre,
+                        empresa.RUC,
+                        empresa.Direccion,
+                        empresa.PagoMinimo
+                    },
+                    suscripcion = new
+                    {
+                        subscription.Id,
+                        mesesRestantes,
+                        fechaInicio = subscription.FechaInicio,
+                        fechaFin = subscription.FechaFin,
+                        activo = subscription.Activo,
+                        plan = subscription.Plan?.Nombre,
+                        monto = subscription.Plan?.Monto ?? 0
+                    }
                 });
             }
             catch (Exception ex)
@@ -62,6 +84,7 @@ namespace AngeAuth.Controllers
                 return StatusCode(500, new { message = "Error al obtener la suscripción", error = ex.Message });
             }
         }
+
 
 
 
